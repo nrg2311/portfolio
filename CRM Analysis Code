@@ -13,7 +13,7 @@ library(stringr)
 Starbucks_review <- read.csv("reviews_data.csv")
 
 # import list of common English stop words from website
-stopwords = scan("/Users/xuanbingzhou/Desktop/Study 2024/Serivce and Customer /stopwords_english.txt",
+stopwords = scan("/Users/nathaliaguiraud/Desktop/Study 2024/Serivce and Customer /stopwords_english.txt",
                  character(),sep="\n")
 
 # function to clean text data
