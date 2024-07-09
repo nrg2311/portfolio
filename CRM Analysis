@@ -1,0 +1,119 @@
+# 1. Analyzing customer reviews
+
+## 1.1 Data pre-processing
+
+```{r pre-processing}
+
+library(tidyverse)
+library(jsonlite)
+library(text2vec)
+library(stringr)
+
+# import data
+Starbucks_review <- read.csv("reviews_data.csv")
+
+# import list of common English stop words from website
+stopwords = scan("/Users/xuanbingzhou/Desktop/Study 2024/Serivce and Customer /stopwords_english.txt",
+                 character(),sep="\n")
+
+# function to clean text data
+prep_fun = function(text) {
+  text %>% 
+    # make text lower case
+    str_to_lower %>% 
+    # remove non-alphanumeric symbols
+    str_replace_all("[^[:alpha:]]", " ") %>% 
+    # remove all words with only one letter
+    str_replace_all("\\b[a-z]\\b", " ") %>%
+    # collapse multiple spaces
+    str_replace_all("\\s+", " ")
+}
+
+# convert text to tokens (token is small units of text that has semantic meanings, breaks the text up into individual words)
+it = itoken(Starbucks_data$Review, preprocessor = prep_fun)
+
+# create a vocabulary from the tokens 
+vocabulary = create_vocabulary(it, stopwords = stopwords) 
+vocabulary = prune_vocabulary(vocabulary, 
+                              term_count_min = 5, # remove words that occur less than 5 times
+                              doc_proportion_min = 0.001) #take a look at the vocabulary
+v_vect = vocab_vectorizer(vocabulary)
+
+# create document-term matrix: column is a unique word. row is a review. 
+dtm = create_dtm(it, v_vect)
+
+# sample of dtm content
+dim(dtm)
+dtm[230:235,900:908]
+
+## 1.2 Simple word cloud
+
+```{r word cloud}
+
+library(topicmodels)
+library(tidytext)
+library(reshape2)
+library(wordcloud)
+
+# word cloud 
+wordcloud(words = vocabulary$term,
+          freq = vocabulary$term_count, 
+          max.words = 80,
+          random.order = FALSE,
+          rot.per = 0.35,
+          colors=brewer.pal(6, "Spectral")) 
+
+```
+## 1.3 Topic model
+
+
+```{r topic model}
+
+library(topicmodels)
+library(tidytext)
+library(reshape2)
+library(wordcloud)
+
+# estimate LDA model
+set.seed(1)
+lda = LDA(dtm,k=2,control=list(seed=1))
+
+# save topics (estimates of beta)
+topics = tidy(lda, matrix = "beta")
+
+# word cloud for topic 1
+wc = topics[topics$topic==1,]
+wordcloud(words = wc$term,
+          freq = wc$beta,
+          max.words = 40,
+          random.order = FALSE,
+          rot.per = 0.35,
+          colors=brewer.pal(8, "Spectral"))
+
+# word cloud for topic 2
+wc = topics[topics$topic==2,]
+wordcloud(words = wc$term,
+          freq = wc$beta,
+          max.words = 40,
+          random.order = FALSE,
+          rot.per = 0.35,
+          colors=brewer.pal(8, "Spectral"))
+
+# plot top 15 terms for each topic
+top_terms = topics %>%
+  group_by(topic) %>%
+  top_n(15, beta) %>%
+  ungroup() %>%
+  arrange(topic, -beta)
+top_terms %>%
+  mutate(term = reorder_within(term, beta, topic)) %>%
+  ggplot(aes(term, beta, fill = factor(topic))) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap( ~ topic, scales = "free") +
+  coord_flip() + 
+  scale_x_reordered() +
+  labs(x="words",y="",title="Estimates of Word-Topic Probabilities") + 
+  theme(plot.title = element_text(hjust = 0.5))
+
+
+```
